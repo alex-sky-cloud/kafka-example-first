@@ -1,0 +1,63 @@
+version: '3.1'
+# zookeeper1 - это название разворачиваемого сервиса. Их будет 3
+# hostname: zookeeper1 - по этому имени будет `разрешаться` адрес, по которому
+# будет доступен указанный контейнер
+# container_name: zookeeper1 - имя контейнера, в котором будет развернут
+services:
+# 1-я Node with Zookeeper
+  zookeeper1:
+    image: zookeeper
+    restart: always
+    hostname: zookeeper1
+    container_name: zookeeper1
+    ports:
+      - 2184:2181
+# указываем переменные среды внутри контейнера. Из этих переменных будут взяты настройки для
+# для модификации конфигурационных файла zookeeper
+# ZOO_MY_ID - идентификатор zookeeper node (важно, чтобы каждый экземляр zookeeper в кластере
+# имел отличительный id)
+# ZOO_SERVERS - указываем маршруты к nodes servers zookeeper в данном кластере
+# zk - это сеть в docker. Ее нужно создать как external network
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=0.0.0.0:2888:3888 server.2=zookeeper2:2888:3888 server.3=zookeeper3:2888:3888
+    networks:
+      zk:
+        ipv4_address: 172.21.0.11
+
+  # 2-я Node with Zookeeper
+  zookeeper2:
+    image: zookeeper
+    restart: always
+    hostname: zookeeper2
+    container_name: zookeeper2
+    ports:
+      - 2185:2181
+    environment:
+      ZOO_MY_ID: 2
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888 server.2=0.0.0.0:2888:3888 server.3=zookeeper3:2888:3888
+    networks:
+      zk:
+        ipv4_address: 172.21.0.12
+
+# 3-я Node with Zookeeper
+  zookeeper3:
+    image: zookeeper
+    restart: always
+    hostname: zookeeper3
+    container_name: zookeeper3
+    ports:
+      - 2186:2181
+    environment:
+      ZOO_MY_ID: 3
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888 server.2=zookeeper2:2888:3888 server.3=0.0.0.0:2888:3888
+    networks:
+      zk:
+        ipv4_address: 172.21.0.13
+# определяются сеть, которая будет использоваться между Nodes в кластере-Zookeeper
+# данная сеть позволяет получить доступ к Nodes из вне, при ее создании определен шлюз,
+# через который запросы будут поступать в эту сеть, расположенную внутри `docker environment`
+networks:
+  zk:
+    external:
+      name: zk
